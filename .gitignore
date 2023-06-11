@@ -1,2 +1,4 @@
 # pytest cache folder
 .pytest_cache
+
+__pycache__
