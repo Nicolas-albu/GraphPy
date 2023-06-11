@@ -1,2 +1,3 @@
-from .adjacent import AdjacentList, AdjacentMatrix
-from .incident import IncidentList, IncidentMatrix
+from .abstracts import AbstractAdjacent, AbstractIncident
+from .type_lists import AdjacentList, IncidentList
+from .type_matrix import AdjacentMatrix, IncidentMatrix
