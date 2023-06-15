@@ -2,15 +2,11 @@
 This module provides the Graph class for creating and manipulating graphs.
 """
 
-from typing import Tuple
+from collections import deque
+from typing import Optional
 
-from .error import GraphIncompatibleError
-from .interfaces import (
-    AbstractAdjacent,
-    AbstractIncident,
-    AdjacentList,
-    AdjacentMatrix,
-)
+from .error import WeightNotEnabledError
+from .graph_list import GraphList
 
 
 class Graph:
@@ -24,52 +20,9 @@ class Graph:
     adjacency matrices, incidence matrices, adjacency lists, and incidence
     lists. Each representation has its own advantages and serves specific
     purposes in graph theory.
-
-    Adjacency Matrices:
-        An adjacency matrix is a square matrix used to represent the
-        connections between vertices in a graph. The rows and columns of the
-        matrix correspond to the vertices of the graph, and each entry
-        represents the presence or absence of an edge between two vertices. If
-        there is an edge between vertices i and j, the corresponding entry in
-        the matrix is set to 1; otherwise, it is set to 0. Adjacency matrices
-        are particularly useful for dense graphs, where the number of edges is
-        close to the maximum possible number of edges.
-
-    Incidence Matrices:
-        An incidence matrix is a rectangular matrix used to represent the
-    relationships between vertices and edges in a graph. The rows of the
-    matrix correspond to the vertices, and the columns correspond to the edges.
-    Each entry indicates the incidence of a vertex in an edge. Typically, the
-    entry is set to 1 if the vertex is incident to the edge, -1 if the vertex
-    is incident to the edge but in the opposite direction, and 0 if the vertex
-    is not incident to the edge. Incidence matrices are commonly used for
-    directed graphs or graphs with multiple edges between vertices.
-
-    Adjacency Lists:
-        An adjacency list is a data structure that represents a graph as an
-    array of linked lists. Each element in the array corresponds to a vertex
-    in the graph, and the linked list associated with each vertex contains the
-    vertices that are adjacent to it. Adjacency lists are memory-efficient for
-    representing sparse graphs, where the number of edges is significantly
-    smaller than the maximum possible number of edges. They also facilitate
-    efficient traversal of a graph, as it is easy to obtain a list of adjacent
-    vertices for a given vertex.
-
-    Incidence Lists:
-        An incidence list is a data structure that represents a graph as an
-    array of linked lists. Similar to adjacency lists, each element in the
-    array corresponds to a vertex in the graph. However, the linked list
-    associated with each vertex contains the edges incident to that vertex
-    rather than the adjacent vertices. Incidence lists are commonly used when
-    the focus is on the relationships between vertices and edges, rather than
-    adjacency between vertices.
     """
 
     __slots__ = (
-        '__quantity_vertex',
-        '__quantity_edges',
-        '__shape',
-        '__sparse',
         '__directed',
         '__weighted',
         '__data',
@@ -77,54 +30,31 @@ class Graph:
 
     def __init__(
         self,
-        shape: Tuple[int, int],
         *,
-        sparse: bool,
-        directed: bool,
-        weighted: bool,
+        directed: bool = True,
+        weighted: bool = False,
     ):
         """Initializes a new instance of the Graph class.
 
         Args:
-            shape (Tuple[int, int]): The shape of the graph, represented by an
-                ordered pair of integers, where the first value is the number
-                of vertices and the second value is the number of edges.
-            sparse (bool): Indicates whether the graph is sparse (True)
-                or dense (False).
             directed (bool): Indicates whether the graph is directed (True)
                 or undirected (False).
             weighted (bool): Indicates whether the graph has weighted edges
                 (True) or unweighted edges (False).
         """
-        self.__quantity_vertex, self.__quantity_edges = shape
-        self.__shape = shape
-        self.__sparse = sparse
         self.__directed = directed
         self.__weighted = weighted
-        self.__data = self.__factory_data()
+        self.__data = GraphList(weighted=self.__weighted)
 
     @property
-    def shape(self) -> Tuple[int, int]:
+    def quantity_rows(self) -> bool:
         """
-        Gets the shape of the graph.
+        Returns the number of rows in the graph.
 
         Returns:
-            Tuple[int, int]: The shape of the graph, represented by an ordered
-                pair of integers, where the first value
-            is the number of vertices and the second value is the number
-                of edges.
+            int: The number of rows in the graph.
         """
-        return self.__shape
-
-    @property
-    def is_sparse(self) -> bool:
-        """
-        Checks if the graph is sparse.
-
-        Returns:
-            bool: True if the graph is sparse, False otherwise.
-        """
-        return self.__sparse
+        return self.__data.quantity_rows
 
     @property
     def is_directed(self) -> bool:
@@ -146,88 +76,69 @@ class Graph:
         """
         return self.__weighted
 
-    def __factory_data(self) -> AbstractAdjacent | AbstractIncident:
+    @property
+    def vertices(self):
         """
-        Factory method to create the appropriate data structure based on the
-            graph properties.
+        Returns the vertices of the graph.
 
         Returns:
-            AbstractAdjacent | AbstractIncident: An instance of a class
-                implementing either the AbstractAdjacent or
-            AbstractIncident interface, based on the graph properties.
-        Raises:
-            GraphIncompatibleError: If the graph type is incompatible.
+            list: A list of vertices in the graph.
         """
-        is_more_vertex: bool = self.__quantity_edges <= self.__quantity_vertex
+        return self.__data.vertices
 
-        if is_more_vertex and self.is_sparse:
-            return AdjacentList(
-                self.__quantity_vertex, weighted=self.is_weighted
-            )
-
-        if is_more_vertex:
-            return AdjacentMatrix(
-                self.__quantity_vertex, weighted=self.is_weighted
-            )
-
-        raise GraphIncompatibleError('Incompatible graph types')
-
-    def __setitem__(
-        self, vertex: int, arrival_vertex: int | Tuple[int, int | float]
-    ):
+    def put_edge(
+        self,
+        start_vertex: int | str,
+        arrival_vertex: int | str,
+        /,
+        *,
+        weight: Optional[float] = None,
+    ) -> None:
         """
-        Sets the arrival vertex for a given vertex in the graph.
+        Adds an edge to the graph between the start_vertex and arrival_vertex.
 
         Args:
-            vertex (int): The vertex to set the arrival vertex for.
-            arrival_vertex (int | Tuple[int, int | float]): The arrival vertex
-                or an ordered pair of the arrival vertex and its weight
-                (if the graph is weighted).
+            start_vertex (int or str): The starting vertex of the edge.
+            arrival_vertex (int or str): The arrival vertex of the edge.
+            weight (float, optional): The weight of the edge. Default is None.
         Raises:
-            IndexError: If the vertex or arrival vertex is out of range.
-            TypeError: If the arrival vertex is not of the expected
+            IndexError: If start_vertex or arrival_vertex is an integer less
+                than 0.
+            WeightNotEnabledError: If weight is provided and the graph is
+                unweighted, or if weight is not provided and the graph is
+                weighted.
         """
-        if 0 > vertex < self.__quantity_vertex:
-            raise IndexError(f'vertex {vertex!r} does not exist.')
-
-        if not isinstance(arrival_vertex, int | tuple):
-            raise TypeError(
-                'expected arrival_vertex int or Tuple[int, int | float].'
-            )
-
-        weight: int | float = 0
-
-        if is_tuple := isinstance(arrival_vertex, tuple):
-            arrival_vertex, weight = arrival_vertex
-
-        if 0 > arrival_vertex < self.__quantity_edges:
+        if isinstance(start_vertex, int) and start_vertex < 0:
             raise IndexError(
-                f'arrival vertex {arrival_vertex!r} does not exist.'
+                f'arrival vertex {start_vertex!r} cannot be less than zero.'
             )
 
-        if is_tuple:
-            self.__data[vertex] = arrival_vertex, weight
+        if isinstance(arrival_vertex, int) and arrival_vertex < 0:
+            raise IndexError(
+                f'arrival vertex {arrival_vertex!r} cannot be less than zero.'
+            )
 
-            if self.is_directed:
-                self.__data[arrival_vertex] = vertex, weight
+        if weight and not self.is_weighted or not weight and self.is_weighted:
+            raise WeightNotEnabledError(
+                'Cannot insert or not insert value for edge weight in'
+                'unweighted graph'
+            )
 
-        else:
-            self.__data[vertex] = arrival_vertex
+        self.__data.put(start_vertex, arrival_vertex, weight)
 
-            if self.is_directed:
-                self.__data[arrival_vertex] = vertex
+        if not self.is_directed:
+            self.__data.put(arrival_vertex, start_vertex, weight)
 
-    def __getitem__(self, vertex: int) -> int | float:
+    def __getitem__(self, id_vertex: int) -> deque:
         """
-        Returns the arrival vertex of a given vertex in the graph.
+        Returns the adjacent vertices of a given vertex.
 
         Args:
-            vertex (int): The vertex to retrieve the arrival vertex for.
+            id_vertex (int): The identifier of the vertex.
         Returns:
-            int | float: The arrival vertex or its weight
-                (if the graph is weighted).
+            deque: The deque containing the adjacent vertices.
         """
-        return self.__data[vertex]
+        return self.__data[id_vertex]
 
     def __str__(self):
         """
@@ -245,4 +156,7 @@ class Graph:
         Returns:
             str: A string representation of the graph.
         """
-        return repr(self.__data)
+        return (
+            f'graphpy.Graph(directed={self.__directed}, '
+            f'weighted={self.is_weighted})'
+        )
