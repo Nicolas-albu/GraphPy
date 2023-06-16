@@ -5,7 +5,7 @@ adjacency list data structure.
 
 from collections import deque
 from dataclasses import dataclass
-from typing import Iterable, Optional
+from typing import Any, Generator, Optional
 
 
 @dataclass
@@ -70,7 +70,7 @@ class GraphList:
         """
         return self.__weighted
 
-    def __next_id(self) -> Iterable[int]:
+    def __next_id(self) -> Generator[int, Any, None]:
         """
         Generates the next available vertex identifier.
 
@@ -98,8 +98,8 @@ class GraphList:
 
     def put(
         self,
-        start_vertex: str,
-        arrival_vertex: str,
+        start_vertex: int | str,
+        arrival_vertex: int | str,
         weight: Optional[float] = None,
         /,
     ) -> None:
