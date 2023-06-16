@@ -47,7 +47,7 @@ class Graph:
         self.__data = GraphList(weighted=self.__weighted)
 
     @property
-    def quantity_rows(self) -> bool:
+    def quantity_rows(self) -> int:
         """
         Returns the number of rows in the graph.
 
